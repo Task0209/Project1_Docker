@@ -1,13 +1,10 @@
 pipeline{
     agent any 
+  
     stages{
-        stage('Stage 1: Cloning Repo') {
-            steps{
-                git credentialsId: 'github', url: 'https://github.com/Task0209/chillapp.git'
-            }
-        }
         
-        stage('Step 2: Build the Docker Image'){
+        
+        stage('Step 1: Pull the Docker Image'){
              steps {
                script {
                    env.BUILD_NUMBER = input message: 'Please enter the BuildNumber/Version', parameters: [string(defaultValue: '', description: '', name: 'Build_Number')] ,  ok : 'Continue' 
@@ -21,21 +18,30 @@ pipeline{
            }
         }
         
+        stage('Stage 2: Download the Manifest Files') {
+            steps{
+                sh 'cp -pv /var/lib/jenkins/workspace/Build_Job1/deploy.yaml .'
+                sh 'cp -pv /var/lib/jenkins/workspace/Build_Job1/service.yaml .'
+                sh 'ls -l'
+                sh 'sed -i "s,test_image,task0209/demoapp:$BUILD_NUMBER," deploy.yaml'
+                sh 'chmod u+x ./deploy.yaml'
+                sh 'chmod u+x ./service.yaml'
+            }
+        }
+        
         stage ('Stage 3: Install & Download Kubectl'){
              steps {
                    sh 'curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"'  
                     sh 'chmod u+x ./kubectl'
-                    sh 'chmod u+x ./deploy.yaml'
-                    sh 'chmod u+x ./service.yaml'
                   }
             
              }
              
-                     stage ('Stage 4: Deploying to K8s Cluster'){
+        stage ('Stage 4: Deploying to K8s Cluster'){
              steps {
                  script {
                       withKubeConfig(credentialsId: 'kkk', serverUrl: 'https://192.168.0.50:6443') {
-                                  sh './kubectl create -f deploy.yaml'
+                                  sh './kubectl apply -f deploy.yaml'
                                   sh './kubectl create -f service.yaml'
                                  }
                   }
